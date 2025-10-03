@@ -35,6 +35,9 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OfficeLogin from "./pages/office/OfficeLogin";
 import OfficeDashboard from "./pages/office/OfficeDashboard";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +85,17 @@ const App = () => (
               <ProtectedRoute>
                 <OfficeDashboard />
               </ProtectedRoute>
+            } 
+          />
+          
+          {/* Admin Portal Routes */}
+          <Route path="/admin" element={<AdminLogin />} />
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <AdminProtectedRoute>
+                <AdminDashboard />
+              </AdminProtectedRoute>
             } 
           />
           

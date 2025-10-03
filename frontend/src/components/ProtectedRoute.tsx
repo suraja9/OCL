@@ -8,10 +8,11 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const location = useLocation();
   
-  // Check if user is authenticated by looking for officeAuth in localStorage
+  // Check if user is authenticated by looking for officeToken in localStorage
   const isAuthenticated = () => {
-    const authData = localStorage.getItem('officeAuth');
-    return authData !== null;
+    const token = localStorage.getItem('officeToken');
+    const user = localStorage.getItem('officeUser');
+    return token !== null && user !== null;
   };
 
   if (!isAuthenticated()) {

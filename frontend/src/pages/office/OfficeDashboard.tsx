@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Home, 
@@ -7,30 +7,98 @@ import {
   Globe,
   Menu,
   X,
-  Package
+  Package,
+  MapPin,
+  Users,
+  LogOut
 } from 'lucide-react';
 import BookingPanel from '@/components/BookingPanel';
+import AddressFormsTable from '@/components/office/AddressFormsTable';
+import PincodeManagement from '@/components/office/PincodeManagement';
+import { useToast } from '@/hooks/use-toast';
 
 interface NavigationItem {
   id: string;
   label: string;
   icon: React.ComponentType<any>;
+  permission?: string;
+}
+
+interface OfficeUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  permissions: {
+    dashboard: boolean;
+    booking: boolean;
+    reports: boolean;
+    settings: boolean;
+    pincodeManagement: boolean;
+    addressForms: boolean;
+  };
+  department?: string;
 }
 
 const OfficeDashboard: React.FC = () => {
-  const [activeItem, setActiveItem] = useState('booking');
+  const [activeItem, setActiveItem] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [user, setUser] = useState<OfficeUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  // Get user info from localStorage
+  useEffect(() => {
+    const userData = localStorage.getItem('officeUser');
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
   const navigationItems: NavigationItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'booking', label: 'Booking', icon: Package },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'settings', label: 'Settings', icon: Settings }
+    { id: 'dashboard', label: 'Dashboard', icon: Home, permission: 'dashboard' },
+    { id: 'booking', label: 'Booking', icon: Package, permission: 'booking' },
+    { id: 'reports', label: 'Reports', icon: FileText, permission: 'reports' },
+    { id: 'addressforms', label: 'Address Forms', icon: Users, permission: 'addressForms' },
+    { id: 'pincodes', label: 'Pincode Management', icon: MapPin, permission: 'pincodeManagement' },
+    { id: 'settings', label: 'Settings', icon: Settings, permission: 'settings' }
   ];
+
+  // Filter navigation items based on user permissions
+  const filteredNavigationItems = navigationItems.filter(item => {
+    if (!item.permission) return true;
+    return user?.permissions?.[item.permission as keyof typeof user.permissions];
+  });
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem('officeToken');
+    localStorage.removeItem('officeUser');
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    window.location.href = '/office';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen bg-[#E9F4F4] items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#315750] mx-auto mb-4"></div>
+          <p className="text-[#315750]">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#E9F4F4]">
@@ -70,10 +138,23 @@ const OfficeDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* User Info */}
+        {!sidebarCollapsed && user && (
+          <div className="px-4 mb-4">
+            <div className="bg-white/20 rounded-lg p-3 text-white">
+              <p className="font-semibold text-sm">{user.name}</p>
+              <p className="text-xs opacity-80">{user.email}</p>
+              {user.department && (
+                <p className="text-xs opacity-60">{user.department}</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Navigation Items */}
         <nav className="flex-1 px-2">
           <ul className="space-y-1">
-            {navigationItems.map((item) => (
+            {filteredNavigationItems.map((item) => (
               <li key={item.id} className="relative">
                 <button
                   onClick={() => setActiveItem(item.id)}
@@ -148,11 +229,22 @@ const OfficeDashboard: React.FC = () => {
           </ul>
         </nav>
 
-        {/* Footer with World Map */}
-        <div className="p-4 flex justify-center">
-          <div className={`${sidebarCollapsed ? 'w-10 h-8' : 'w-16 h-10'} bg-gray-600 rounded-lg flex items-center justify-center opacity-70 transition-all duration-300`}>
-            <Globe className={`${sidebarCollapsed ? 'w-5 h-5' : 'w-6 h-6'} text-gray-400`} />
-          </div>
+        {/* Logout Button */}
+        <div className="p-4">
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center transition-all duration-300 relative z-10 rounded-lg ${
+              sidebarCollapsed 
+                ? 'px-3 py-3 justify-center' 
+                : 'px-4 py-3'
+            } text-red-300 hover:text-red-200 hover:bg-red-600/20`}
+            title={sidebarCollapsed ? 'Logout' : undefined}
+          >
+            <LogOut className={`w-5 h-5 ${sidebarCollapsed ? '' : 'mr-3'} flex-shrink-0`} />
+            {!sidebarCollapsed && (
+              <span className="font-medium whitespace-nowrap overflow-hidden">Logout</span>
+            )}
+          </button>
         </div>
       </motion.div>
 
@@ -224,6 +316,32 @@ const OfficeDashboard: React.FC = () => {
                 </div>
               </div>
         </motion.div>
+          )}
+
+          {activeItem === 'addressforms' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-3xl font-bold text-gray-800 mb-6">Address Forms</h1>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl p-1">
+                <AddressFormsTable />
+              </div>
+            </motion.div>
+          )}
+
+          {activeItem === 'pincodes' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-3xl font-bold text-gray-800 mb-6">Pincode Management</h1>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl p-1">
+                <PincodeManagement />
+              </div>
+            </motion.div>
           )}
 
           {activeItem === 'settings' && (

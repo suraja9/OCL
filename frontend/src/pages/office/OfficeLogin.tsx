@@ -20,22 +20,45 @@ const OfficeLogin: React.FC = () => {
   const handleAuth = async (isSignup: boolean = false) => {
     setIsLoading(true);
     
-    // Mock authentication delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication - save to localStorage
-    const mockAuthData = {
-      email,
-      timestamp: Date.now(),
-      type: isSignup ? 'signup' : 'login'
-    };
-    
-    localStorage.setItem('officeAuth', JSON.stringify(mockAuthData));
-    
-    // Redirect to dashboard or intended page
-    navigate(from, { replace: true });
-    
-    setIsLoading(false);
+    try {
+      const endpoint = isSignup ? '/api/office/signup' : '/api/office/login';
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email, 
+          password,
+          ...(isSignup && { name: email.split('@')[0] }) // Use email prefix as name for signup
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (isSignup) {
+          // For signup, show success message and stay on login page
+          alert('Account created successfully! Please login with your credentials.');
+          setEmail('');
+          setPassword('');
+        } else {
+          // For login, save token and user info
+          localStorage.setItem('officeToken', data.token);
+          localStorage.setItem('officeUser', JSON.stringify(data.user));
+          
+          // Redirect to dashboard or intended page
+          navigate(from, { replace: true });
+        }
+      } else {
+        alert(data.error || 'Authentication failed');
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -143,12 +166,12 @@ const OfficeLogin: React.FC = () => {
               disabled={isLoading || !email || !password}
             >
               <UserPlus className="w-4 h-4 mr-2" />
-              Sign Up (Mock)
+              Sign Up
             </Button>
 
             <div className="text-center">
               <p className="text-xs text-gray-500">
-                Mock authentication - any email/password will work
+                Create a new office account
               </p>
             </div>
           </CardContent>

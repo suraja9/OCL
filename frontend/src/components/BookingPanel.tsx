@@ -30,6 +30,7 @@ import {
   Search,
   XCircle
 } from 'lucide-react';
+import ImageUploadWithPreview from './ImageUploadWithPreview';
 
 const API_BASE: string = (import.meta as any).env?.VITE_API_BASE_URL || '';
 
@@ -1141,8 +1142,12 @@ const BookingPanel: React.FC = () => {
       case 3:
         stepData = {
           ...uploadData,
-          packageImages: uploadData.packageImages.map(file => file.name).join(', ') || 'No package images uploaded',
-          invoiceImages: uploadData.invoiceImages.map(file => file.name).join(', ') || 'No invoice images uploaded'
+          packageImages: uploadData.packageImages.length > 0 
+            ? uploadData.packageImages.map(file => file.file?.name || file.originalName || 'Unknown').join(', ')
+            : 'No package images uploaded',
+          invoiceImages: uploadData.invoiceImages.length > 0
+            ? uploadData.invoiceImages.map(file => file.file?.name || file.originalName || 'Unknown').join(', ')
+            : 'No invoice images uploaded'
         };
         stepTitle = 'Confirm Upload Details';
         break;
@@ -1172,8 +1177,12 @@ const BookingPanel: React.FC = () => {
         },
         uploadData: {
           ...uploadData,
-          packageImages: uploadData.packageImages.map(file => file.name).join(', ') || 'No package images uploaded',
-          invoiceImages: uploadData.invoiceImages.map(file => file.name).join(', ') || 'No invoice images uploaded'
+          packageImages: uploadData.packageImages.length > 0 
+            ? uploadData.packageImages.map(file => file.file?.name || file.originalName || 'Unknown').join(', ')
+            : 'No package images uploaded',
+          invoiceImages: uploadData.invoiceImages.length > 0
+            ? uploadData.invoiceImages.map(file => file.file?.name || file.originalName || 'Unknown').join(', ')
+            : 'No invoice images uploaded'
         },
         paymentData
       };
@@ -1319,12 +1328,23 @@ const BookingPanel: React.FC = () => {
         return;
       }
 
+      // Prepare upload data with server paths
+      const processedUploadData = {
+        ...uploadData,
+        packageImages: uploadData.packageImages
+          .filter(file => file.uploaded && file.serverPath)
+          .map(file => file.serverPath),
+        invoiceImages: uploadData.invoiceImages
+          .filter(file => file.uploaded && file.serverPath)
+          .map(file => file.serverPath)
+      };
+
       const fullPayload = {
         formType: "full",
         originData: { ...originData },
         destinationData: { ...destinationData },
         shipmentData: { ...shipmentData },
-        uploadData: { ...uploadData },
+        uploadData: processedUploadData,
         paymentData: { ...paymentData }
       };
 
@@ -1389,6 +1409,17 @@ const BookingPanel: React.FC = () => {
       alternateNumbers: [''],
       addressType: 'Home'
     });
+    setUploadData({
+      totalPackages: '',
+      packageImages: [],
+      contentDescription: '',
+      invoiceNumber: '',
+      invoiceValue: '',
+      invoiceImages: [],
+      eWaybillNumber: '',
+      acceptTerms: false
+    });
+    setPaymentData({ mode: '' });
   };
 
   // Enhanced corporate lookup with validation and auto-fill
@@ -2696,61 +2727,15 @@ const BookingPanel: React.FC = () => {
                       />
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Package Images</label>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            id="packageImages"
-                            multiple
-                            accept="image/*"
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files || []);
-                              setUploadData(prev => ({ ...prev, packageImages: [...prev.packageImages, ...files] }));
-                            }}
-                            className="hidden"
-                          />
-                          <label 
-                            htmlFor="packageImages"
-                            className="border-2 border-dashed border-purple-300 rounded-lg p-4 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-all duration-200 flex flex-col items-center justify-center min-h-[100px]"
-                          >
-                            <Camera className="w-8 h-8 text-purple-400 mb-2" />
-                            <p className="text-sm text-gray-600 mb-1">Click to upload images</p>
-                            <p className="text-xs text-gray-500">Multiple images supported, any format</p>
-                          </label>
-                          
-                          {/* Preview uploaded images */}
-                          {uploadData.packageImages.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                              <div className="text-sm font-medium text-purple-700">
-                                Uploaded Images ({uploadData.packageImages.length})
-                              </div>
-                              <div className="max-h-40 overflow-y-auto space-y-2">
-                                {uploadData.packageImages.map((file, index) => (
-                                  <div key={index} className="relative bg-purple-50 rounded-lg p-3 border border-purple-200">
-                                    <div className="flex items-center space-x-3">
-                                      <Camera className="w-5 h-5 text-purple-600" />
-                                      <span className="text-sm text-gray-700 truncate flex-1">
-                                        {file.name}
-                                      </span>
-                                      <span className="text-xs text-gray-500">
-                                        {(file.size / 1024).toFixed(1)} KB
-                                      </span>
-                                      <button
-                                        onClick={() => {
-                                          const newImages = uploadData.packageImages.filter((_, i) => i !== index);
-                                          setUploadData(prev => ({ ...prev, packageImages: newImages }));
-                                        }}
-                                        className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-100 transition-colors"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <ImageUploadWithPreview
+                          label="Package Images"
+                          files={uploadData.packageImages}
+                          onFilesChange={(files) => setUploadData(prev => ({ ...prev, packageImages: files }))}
+                          maxFiles={10}
+                          accept="image/*"
+                          uploadEndpoint={`${API_BASE}/api/upload/package-images`}
+                          fieldName="packageImages"
+                        />
                       </div>
                     </div>
 
@@ -2817,61 +2802,16 @@ const BookingPanel: React.FC = () => {
 
                     {/* Invoice Images Upload */}
                     <div className="mt-6">
-                      <label className="block text-sm font-medium text-indigo-800 mb-3">Upload Invoice Images</label>
-                      <div className="relative">
-                        <input
-                          type="file"
-                          id="invoiceImages"
-                          multiple
-                          accept="image/*"
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            setUploadData(prev => ({ ...prev, invoiceImages: [...prev.invoiceImages, ...files] }));
-                          }}
-                          className="hidden"
-                        />
-                        <label 
-                          htmlFor="invoiceImages"
-                          className="border-2 border-dashed border-indigo-300 rounded-lg p-4 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-200 flex flex-col items-center justify-center min-h-[100px]"
-                        >
-                          <Upload className="w-8 h-8 text-indigo-400 mb-2" />
-                          <p className="text-sm text-gray-600 mb-1">Click to upload invoice images</p>
-                          <p className="text-xs text-gray-500">Multiple images supported</p>
-                        </label>
-                        
-                        {/* Preview uploaded invoice images */}
-                        {uploadData.invoiceImages.length > 0 && (
-                          <div className="mt-4 space-y-2">
-                            <div className="text-sm font-medium text-indigo-700">
-                              Uploaded Invoice Images ({uploadData.invoiceImages.length})
-                            </div>
-                            <div className="max-h-40 overflow-y-auto space-y-2">
-                              {uploadData.invoiceImages.map((file, index) => (
-                                <div key={index} className="relative bg-indigo-50 rounded-lg p-3 border border-indigo-200">
-                                  <div className="flex items-center space-x-3">
-                                    <FileText className="w-5 h-5 text-indigo-600" />
-                                    <span className="text-sm text-gray-700 truncate flex-1">
-                                      {file.name}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {(file.size / 1024).toFixed(1)} KB
-                                    </span>
-                                    <button
-                                      onClick={() => {
-                                        const newImages = uploadData.invoiceImages.filter((_, i) => i !== index);
-                                        setUploadData(prev => ({ ...prev, invoiceImages: newImages }));
-                                      }}
-                                      className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-100 transition-colors"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <ImageUploadWithPreview
+                        label="Upload Invoice Images"
+                        files={uploadData.invoiceImages}
+                        onFilesChange={(files) => setUploadData(prev => ({ ...prev, invoiceImages: files }))}
+                        maxFiles={10}
+                        accept="image/*"
+                        uploadEndpoint={`${API_BASE}/api/upload/invoice-images`}
+                        fieldName="invoiceImages"
+                        className="bg-indigo-50 p-4 rounded-lg border border-indigo-200"
+                      />
                     </div>
                   </div>
 

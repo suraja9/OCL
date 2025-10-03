@@ -4,9 +4,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import pincodeRoutes from "./routes/pincode.js";
+import adminRoutes from "./routes/admin.js";
+import officeRoutes from "./routes/office.js";
+import uploadRoutes from "./routes/upload.js";
 import FormData from "./models/FormData.js";
 import PinCodeArea from "./models/PinCodeArea.js";
 import CorporateData from "./models/CorporateData.js";
+import Admin from "./models/Admin.js";
+import OfficeUser from "./models/OfficeUser.js";
 
 dotenv.config();
 const app = express();
@@ -24,6 +29,9 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/pincode", pincodeRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/office", officeRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // FORM DATA ROUTES
 
@@ -1115,6 +1123,15 @@ const startServer = async () => {
     // Check corporate collection
     const corporateCount = await CorporateData.countDocuments();
     console.log(`🏢 CorporateData collection has ${corporateCount} records`);
+    
+    // Initialize default admin if none exists
+    await Admin.createDefaultAdmin();
+    const adminCount = await Admin.countDocuments();
+    console.log(`👤 Admin collection has ${adminCount} records`);
+    
+    // Check office users collection
+    const officeUserCount = await OfficeUser.countDocuments();
+    console.log(`🏢 OfficeUser collection has ${officeUserCount} records`);
     
     // Start the server
     const PORT = process.env.PORT || 5000;
